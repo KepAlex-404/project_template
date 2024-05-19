@@ -1,7 +1,7 @@
 import asyncio
 import json
 from typing import Set, Dict, List, Any
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Body
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Body, Depends
 from sqlalchemy import (
     create_engine,
     MetaData,
@@ -12,7 +12,7 @@ from sqlalchemy import (
     Float,
     DateTime,
 )
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.sql import select, update, delete
 from datetime import datetime
 from pydantic import BaseModel, field_validator
@@ -160,11 +160,8 @@ def read_processed_agent_data(processed_agent_data_id: int):
 
 
 @app.get("/processed_agent_data/", response_model=List[ProcessedAgentDataInDB])
-def list_processed_agent_data():
-    with SessionLocal() as session:
-        query = select(processed_agent_data)
-        result = session.execute(query).fetchall()
-        return result
+def list_processed_agent_data(session: Session = Depends(SessionLocal)):
+    return session.query(ProcessedAgentData).all()
 
 
 @app.put(
