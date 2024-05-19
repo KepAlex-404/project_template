@@ -195,8 +195,6 @@ def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAge
     if not result:
         raise HTTPException(status_code=404, detail="Data not found")
     db.commit()
-    updated = select(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id)
-    return db.execute(updated).first()
 
 
 @app.delete(
