@@ -10,7 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Float,
-    DateTime,
+    DateTime, insert,
 )
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.sql import select, update, delete
@@ -128,15 +128,15 @@ def db_session(func):
     async def wrapper(*args, **kwargs):
         async with SessionLocal() as db:
             return await func(*args, db=db, **kwargs)
+
     return wrapper
 
 
-@app.post("/processed_agent_data/")
 @db_session
-async def create_processed_agent_data(data: List[ProcessedAgentData], db: Session):
+def create_processed_agent_data(data: List[ProcessedAgentData], db: Session):
     for item in data:
         try:
-            query = processed_agent_data.insert().values(
+            query = insert(processed_agent_data).values(
                 road_state=item.road_state,
                 user_id=item.agent_data.user_id,
                 x=item.agent_data.accelerometer.x,
@@ -148,16 +148,12 @@ async def create_processed_agent_data(data: List[ProcessedAgentData], db: Sessio
             )
             result = db.execute(query)
             db.commit()
-            await send_data_to_subscribers(item.agent_data.user_id, result)
+            send_data_to_subscribers(item.agent_data.user_id, result)
         except Exception as e:
             db.rollback()
             raise e
 
 
-@app.get(
-    "/processed_agent_data/{processed_agent_data_id}",
-    response_model=ProcessedAgentDataInDB,
-)
 @db_session
 def read_processed_agent_data(processed_agent_data_id: int, db: Session):
     query = select(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id)
@@ -167,7 +163,6 @@ def read_processed_agent_data(processed_agent_data_id: int, db: Session):
     return result
 
 
-@app.get("/processed_agent_data/", response_model=List[ProcessedAgentDataInDB])
 @db_session
 def list_processed_agent_data(db: Session):
     query = select(processed_agent_data)
@@ -175,10 +170,6 @@ def list_processed_agent_data(db: Session):
     return result
 
 
-@app.put(
-    "/processed_agent_data/{processed_agent_data_id}",
-    response_model=ProcessedAgentDataInDB,
-)
 @db_session
 def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAgentData, db: Session):
     query = update(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id).values(
@@ -197,10 +188,6 @@ def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAge
     db.commit()
 
 
-@app.delete(
-    "/processed_agent_data/{processed_agent_data_id}",
-    response_model=ProcessedAgentDataInDB,
-)
 @db_session
 def delete_processed_agent_data(processed_agent_data_id: int, db: Session):
     to_delete = select(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id)
@@ -211,6 +198,32 @@ def delete_processed_agent_data(processed_agent_data_id: int, db: Session):
         raise HTTPException(status_code=404, detail="Data not found")
     db.commit()
     return obj_to_delete
+
+
+# Define your FastAPI routes using the above methods as handlers.
+@app.post("/processed_agent_data/")
+async def create_processed_agent_data_route(data: List[ProcessedAgentData], db: Session):
+    return create_processed_agent_data(data, db)
+
+
+@app.get("/processed_agent_data/{processed_agent_data_id}", response_model=ProcessedAgentDataInDB)
+def read_processed_agent_data_route(processed_agent_data_id: int, db: Session):
+    return read_processed_agent_data(processed_agent_data_id, db)
+
+
+@app.get("/processed_agent_data/", response_model=List[ProcessedAgentDataInDB])
+def list_processed_agent_data_route(db: Session):
+    return list_processed_agent_data(db)
+
+
+@app.put("/processed_agent_data/{processed_agent_data_id}", response_model=ProcessedAgentDataInDB)
+def update_processed_agent_data_route(processed_agent_data_id: int, data: ProcessedAgentData, db: Session):
+    return update_processed_agent_data(processed_agent_data_id, data, db)
+
+
+@app.delete("/processed_agent_data/{processed_agent_data_id}", response_model=ProcessedAgentDataInDB)
+def delete_processed_agent_data_route(processed_agent_data_id: int, db: Session):
+    return delete_processed_agent_data(processed_agent_data_id, db)
 
 
 if __name__ == "__main__":
