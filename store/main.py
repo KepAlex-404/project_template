@@ -131,8 +131,8 @@ def db_session(func):
     return wrapper
 
 
-@app.post("/processed_agent_data/")
 @db_session
+@app.post("/processed_agent_data/")
 async def create_processed_agent_data(data: List[ProcessedAgentData], db: Session):
     for item in data:
         try:
@@ -154,11 +154,11 @@ async def create_processed_agent_data(data: List[ProcessedAgentData], db: Sessio
             raise e
 
 
+@db_session
 @app.get(
     "/processed_agent_data/{processed_agent_data_id}",
     response_model=ProcessedAgentDataInDB,
 )
-@db_session
 def read_processed_agent_data(processed_agent_data_id: int, db: Session):
     query = select(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id)
     result = db.execute(query).first()
@@ -166,20 +166,19 @@ def read_processed_agent_data(processed_agent_data_id: int, db: Session):
         raise HTTPException(status_code=404, detail="Data not found")
     return result
 
-
-@app.get("/processed_agent_data/", response_model=List[ProcessedAgentDataInDB])
 @db_session
+@app.get("/processed_agent_data/", response_model=List[ProcessedAgentDataInDB])
 def list_processed_agent_data(db: Session):
     query = select(processed_agent_data)
     result = db.execute(query).fetchall()
     return result
 
 
+@db_session
 @app.put(
     "/processed_agent_data/{processed_agent_data_id}",
     response_model=ProcessedAgentDataInDB,
 )
-@db_session
 def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAgentData, db: Session):
     query = update(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id).values(
         road_state=data.road_state,
@@ -197,11 +196,11 @@ def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAge
     db.commit()
 
 
+@db_session
 @app.delete(
     "/processed_agent_data/{processed_agent_data_id}",
     response_model=ProcessedAgentDataInDB,
 )
-@db_session
 def delete_processed_agent_data(processed_agent_data_id: int, db: Session):
     to_delete = select(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id)
     obj_to_delete = db.execute(to_delete).first()
