@@ -13,7 +13,7 @@ from sqlalchemy import (
     DateTime,
 )
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import select
+from sqlalchemy.sql import select, update, delete
 from datetime import datetime
 from pydantic import BaseModel, field_validator
 from config import (
@@ -123,12 +123,27 @@ async def send_data_to_subscribers(user_id: int, data):
 
 # FastAPI CRUDL endpoints
 
-
 @app.post("/processed_agent_data/")
 async def create_processed_agent_data(data: List[ProcessedAgentData]):
-    # Insert data to database
-    # Send data to subscribers
-    pass
+    with SessionLocal() as db:
+        for item in data:
+            try:
+                query = processed_agent_data.insert().values(
+                    road_state=item.road_state,
+                    user_id=item.agent_data.user_id,
+                    x=item.agent_data.accelerometer.x,
+                    y=item.agent_data.accelerometer.y,
+                    z=item.agent_data.accelerometer.z,
+                    latitude=item.agent_data.gps.latitude,
+                    longitude=item.agent_data.gps.longitude,
+                    timestamp=item.agent_data.timestamp
+                )
+                result = db.execute(query)
+                db.commit()
+                await send_data_to_subscribers(item.agent_data.user_id, result)
+            except Exception as e:
+                db.rollback()
+                raise e
 
 
 @app.get(
@@ -136,14 +151,20 @@ async def create_processed_agent_data(data: List[ProcessedAgentData]):
     response_model=ProcessedAgentDataInDB,
 )
 def read_processed_agent_data(processed_agent_data_id: int):
-    # Get data by id
-    pass
+    with SessionLocal() as session:
+        query = select(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id)
+        result = session.execute(query).first()
+        if not result:
+            raise HTTPException(status_code=404, detail="Data not found")
+        return result
 
 
-@app.get("/processed_agent_data/", response_model=list[ProcessedAgentDataInDB])
+@app.get("/processed_agent_data/", response_model=List[ProcessedAgentDataInDB])
 def list_processed_agent_data():
-    # Get list of data
-    pass
+    with SessionLocal() as session:
+        query = select(processed_agent_data)
+        result = session.execute(query).fetchall()
+        return result
 
 
 @app.put(
@@ -151,8 +172,23 @@ def list_processed_agent_data():
     response_model=ProcessedAgentDataInDB,
 )
 def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAgentData):
-    # Update data
-    pass
+    with SessionLocal() as session:
+        query = update(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id).values(
+            road_state=data.road_state,
+            user_id=data.agent_data.user_id,
+            x=data.agent_data.accelerometer.x,
+            y=data.agent_data.accelerometer.y,
+            z=data.agent_data.accelerometer.z,
+            latitude=data.agent_data.gps.latitude,
+            longitude=data.agent_data.gps.longitude,
+            timestamp=data.agent_data.timestamp
+        )
+        result = session.execute(query)
+        if not result:
+            raise HTTPException(status_code=404, detail="Data not found")
+        session.commit()
+        updated = select(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id)
+        return session.execute(updated).first()
 
 
 @app.delete(
@@ -160,8 +196,15 @@ def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAge
     response_model=ProcessedAgentDataInDB,
 )
 def delete_processed_agent_data(processed_agent_data_id: int):
-    # Delete by id
-    pass
+    with SessionLocal() as session:
+        to_delete = select(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id)
+        obj_to_delete = session.execute(to_delete).first()
+        query = delete(processed_agent_data).where(processed_agent_data.c.id == processed_agent_data_id)
+        result = session.execute(query)
+        if not result:
+            raise HTTPException(status_code=404, detail="Data not found")
+        session.commit()
+        return obj_to_delete
 
 
 if __name__ == "__main__":
