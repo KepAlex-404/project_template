@@ -202,13 +202,13 @@ def delete_processed_agent_data(processed_agent_data_id: int, db: Session):
 
 # Define your FastAPI routes using the above methods as handlers.
 @app.post("/processed_agent_data/")
-async def create_processed_agent_data_route(data: List[ProcessedAgentData], db: Session):
-    return create_processed_agent_data(data, db)
+async def create_processed_agent_data_route(data: List[ProcessedAgentData]):
+    return create_processed_agent_data(data)
 
 
 @app.get("/processed_agent_data/{processed_agent_data_id}", response_model=ProcessedAgentDataInDB)
-def read_processed_agent_data_route(processed_agent_data_id: int, db: Session):
-    return read_processed_agent_data(processed_agent_data_id, db)
+def read_processed_agent_data_route(processed_agent_data_id: int):
+    return read_processed_agent_data(processed_agent_data_id)
 
 
 @app.get("/processed_agent_data/", response_model=List[ProcessedAgentDataInDB])
@@ -217,13 +217,13 @@ def list_processed_agent_data_route(db: Session):
 
 
 @app.put("/processed_agent_data/{processed_agent_data_id}", response_model=ProcessedAgentDataInDB)
-def update_processed_agent_data_route(processed_agent_data_id: int, data: ProcessedAgentData, db: Session):
-    return update_processed_agent_data(processed_agent_data_id, data, db)
+def update_processed_agent_data_route(processed_agent_data_id: int, data: ProcessedAgentData):
+    return update_processed_agent_data(processed_agent_data_id, data)
 
 
 @app.delete("/processed_agent_data/{processed_agent_data_id}", response_model=ProcessedAgentDataInDB)
-def delete_processed_agent_data_route(processed_agent_data_id: int, db: Session):
-    return delete_processed_agent_data(processed_agent_data_id, db)
+def delete_processed_agent_data_route(processed_agent_data_id: int):
+    return delete_processed_agent_data(processed_agent_data_id)
 
 
 if __name__ == "__main__":
