@@ -161,7 +161,7 @@ def read_processed_agent_data(processed_agent_data_id: int):
 
 @app.get("/processed_agent_data/", response_model=List[ProcessedAgentDataInDB])
 def list_processed_agent_data(session: Session = Depends(SessionLocal)):
-    return session.query(ProcessedAgentData).all()
+    return session.query(processed_agent_data).all()
 
 
 @app.put(
