@@ -28,6 +28,7 @@ logging.basicConfig(
 )
 # Create an instance of the Redis using the configuration
 redis_client = Redis(host=REDIS_HOST, port=REDIS_PORT)
+redis_client.flushall()
 # Create an instance of the StoreApiAdapter using the configuration
 store_adapter = StoreApiAdapter(api_base_url=STORE_API_BASE_URL)
 # Create an instance of the AgentMQTTAdapter using the configuration
@@ -37,8 +38,9 @@ app = FastAPI()
 
 
 @app.post("/processed_agent_data/")
-async def save_processed_agent_data(processed_agent_data: ProcessedAgentData):
-    redis_client.lpush("processed_agent_data", processed_agent_data.model_dump_json())
+async def save_processed_agent_data(processed_agent_data: List[ProcessedAgentData]):
+    for obj in processed_agent_data:
+        redis_client.lpush("processed_agent_data", obj.model_dump_json())
     if redis_client.llen("processed_agent_data") >= BATCH_SIZE:
         processed_agent_data_batch: List[ProcessedAgentData] = []
         for _ in range(BATCH_SIZE):
