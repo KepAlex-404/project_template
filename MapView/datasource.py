@@ -4,10 +4,9 @@ from datetime import datetime
 import websockets
 from kivy import Logger
 from pydantic import BaseModel, field_validator
+import scipy.signal
 from config import STORE_HOST, STORE_PORT
 
-
-# Pydantic models
 class ProcessedAgentData(BaseModel):
     road_state: str
     user_id: int
@@ -30,20 +29,12 @@ class ProcessedAgentData(BaseModel):
                 "Invalid timestamp format. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ)."
             )
 
-
 class Datasource:
-    def __init__(self, user_id: int):
-        self.index = 0
+    def __init__(self, user_id=1):
         self.user_id = user_id
         self.connection_status = None
-        self._new_points = []
+        self._new_data = []
         asyncio.ensure_future(self.connect_to_server())
-
-    def get_new_points(self):
-        Logger.debug(self._new_points)
-        points = self._new_points
-        self._new_points = []
-        return points
 
     async def connect_to_server(self):
         uri = f"ws://{STORE_HOST}:{STORE_PORT}/ws/{self.user_id}"
@@ -54,8 +45,12 @@ class Datasource:
                 try:
                     while True:
                         data = await websocket.recv()
-                        parsed_data = json.loads(data)
-                        self.handle_received_data(parsed_data)
+                        try:
+                            parsed_data = json.loads(data)
+                            self.handle_received_data(parsed_data)
+                        except json.JSONDecodeError:
+                            print("Received data is not valid JSON:")
+                            print(data)
                 except websockets.ConnectionClosedOK:
                     self.connection_status = "Disconnected"
                     Logger.debug("SERVER DISCONNECT")
@@ -63,19 +58,11 @@ class Datasource:
     def handle_received_data(self, data):
         # Update your UI or perform actions with received data here
         Logger.debug(f"Received data: {data}")
-        processed_agent_data_list = sorted(
-            [
+        sorted_data = [
                 ProcessedAgentData(**processed_data_json)
                 for processed_data_json in json.loads(data)
-            ],
-            key=lambda v: v.timestamp,
-        )
-        new_points = [
-            (
-                processed_agent_data.latitude,
-                processed_agent_data.longitude,
-                processed_agent_data.road_state,
-            )
-            for processed_agent_data in processed_agent_data_list
-        ]
-        self._new_points.extend(new_points)
+            ]
+        self._new_data.extend(sorted_data)
+        
+    def get_new_data(self):
+        return self._new_data

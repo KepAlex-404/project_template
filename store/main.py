@@ -23,6 +23,7 @@ from config import (
     POSTGRES_USER,
     POSTGRES_PASSWORD,
 )
+import pydantic_core
 
 # FastAPI app setup
 app = FastAPI()
@@ -118,7 +119,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
 async def send_data_to_subscribers(user_id: int, data):
     if user_id in subscriptions:
         for websocket in subscriptions[user_id]:
-            await websocket.send_json(json.dumps(data))
+            await websocket.send_json(json.dumps(data, default=pydantic_core.to_jsonable_python))
 
 
 # FastAPI CRUDL endpoints
@@ -130,24 +131,29 @@ def get_session():
 
 @app.post("/processed_agent_data/")
 async def create_processed_agent_data(data: List[ProcessedAgentData], session: Session = Depends(get_session)):
+    res = []
     for item in data:
         try:
+            subscriptions_data = {
+                "road_state": item.road_state,
+                "user_id": item.agent_data.user_id,
+                "x": item.agent_data.accelerometer.x,
+                "y": item.agent_data.accelerometer.y,
+                "z": item.agent_data.accelerometer.z,
+                "latitude": item.agent_data.gps.latitude,
+                "longitude": item.agent_data.gps.longitude,
+                "timestamp": item.agent_data.timestamp
+            }
             query = processed_agent_data.insert().values(
-                road_state=item.road_state,
-                user_id=item.agent_data.user_id,
-                x=item.agent_data.accelerometer.x,
-                y=item.agent_data.accelerometer.y,
-                z=item.agent_data.accelerometer.z,
-                latitude=item.agent_data.gps.latitude,
-                longitude=item.agent_data.gps.longitude,
-                timestamp=item.agent_data.timestamp
+                subscriptions_data
             )
             result = session.execute(query)
             session.commit()
-            await send_data_to_subscribers(item.agent_data.user_id, result)
+            res.append(subscriptions_data)
         except Exception as e:
             session.rollback()
             raise e
+    await send_data_to_subscribers(1, res)
 
 
 @app.get(
