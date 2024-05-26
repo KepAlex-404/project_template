@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, field_validator
+from typing import Optional
 
 
 class AccelerometerData(BaseModel):
@@ -17,6 +18,7 @@ class AgentData(BaseModel):
     accelerometer: AccelerometerData
     gps: GpsData
     timestamp: datetime
+    user_id: Optional[int] = 1
 
     @classmethod
     @field_validator("timestamp", mode="before")
